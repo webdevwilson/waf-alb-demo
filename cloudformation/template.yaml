@@ -1,0 +1,232 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'AWS CloudFormation Template for building a simple docker pipeline to ECS'
+Parameters:
+
+  ApplicationName:
+    AllowedPattern: ^[a-z]([a-z0-9-])+$
+    ConstraintDescription: Application name must be between 2 and 15 characters, begin with a letter, and only contain lowercase letters, numbers, and hyphens (-).
+    Description: Name of the application.
+    MaxLength: 15
+    MinLength: 2
+    Type: String
+
+  ContainerPort:
+    Type: String
+    Description: HTTP port the application is binds to
+    Default: 80
+
+  FargateSize:
+    Type: String
+    Description: |
+      The vCPU (1024 is full CPU) and Memory (in MB) size for Fargate to allocate
+    Default: 256,512
+    AllowedValues:
+      - 256,512
+      - 256,2048
+      - 512,1024
+      - 512,2048
+
+  Image:
+    Type: String
+    Description: The image to launch
+
+  SubnetId1:
+    Type: AWS::EC2::Subnet::Id
+    Description: The subnets the application runs in
+
+  SubnetId2:
+    Type: AWS::EC2::Subnet::Id
+    Description: The subnets the application runs in
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: The ID of the VPC
+
+Resources:
+
+  LoadBalancerSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allows traffic on port 80
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+      VpcId: !Ref 'VpcId'
+
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Ref 'ApplicationName'
+      SecurityGroups:
+        - !Ref LoadBalancerSecurityGroup
+      Subnets:
+        - !Ref 'SubnetId1'
+        - !Ref 'SubnetId2'
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Ref 'ApplicationName'
+      Port: 80
+      Protocol: HTTP
+      Tags:
+        - Key: Name
+          Value: !Ref 'ApplicationName'
+      TargetType: ip
+      VpcId: !Ref 'VpcId'
+
+  LoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - TargetGroupArn: !Ref 'TargetGroup'
+          Type: forward
+      LoadBalancerArn: !Ref 'LoadBalancer'
+      Port: 80
+      Protocol: HTTP
+
+  WafLoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub 'WAF-${ApplicationName}'
+      SecurityGroups:
+        - !Ref LoadBalancerSecurityGroup
+      Subnets:
+        - !Ref 'SubnetId1'
+        - !Ref 'SubnetId2'
+
+  WafTargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub 'WAF-${ApplicationName}'
+      Port: 80
+      Protocol: HTTP
+      Tags:
+        - Key: Name
+          Value: !Ref 'ApplicationName'
+      TargetType: ip
+      VpcId: !Ref 'VpcId'
+
+  WafLoadBalancerListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      DefaultActions:
+        - TargetGroupArn: !Ref 'WafTargetGroup'
+          Type: forward
+      LoadBalancerArn: !Ref 'WafLoadBalancer'
+      Port: 80
+      Protocol: HTTP
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Join ['', ['/ecs/', !Ref 'ApplicationName']]
+      RetentionInDays: 14
+
+  EcsTaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Statement:
+          - Action: 'sts:AssumeRole'
+            Effect: 'Allow'
+            Principal:
+              Service:
+                - 'ecs-tasks.amazonaws.com'
+      Path: /
+      Policies:
+        - PolicyName: !Join ['-', [!Ref 'ApplicationName', 'ecs', 'service']]
+          PolicyDocument:
+            Statement:
+              - Action:
+                  - 'ecr:BatchCheckLayerAvailability'
+                  - 'ecr:GetDownloadUrlForLayer'
+                  - 'ecr:GetRepositoryPolicy'
+                  - 'ecr:DescribeRepositories'
+                  - 'ecr:ListImages'
+                  - 'ecr:DescribeImages'
+                  - 'ecr:BatchGetImage'
+                Effect: 'Allow'
+                Resource: !Sub
+                  - 'arn:aws:ecr:${AWS::Region}:${AWS::AccountId}:repository/${ApplicationName}'
+                  - { Image: !Ref 'ApplicationName' }
+              - Action:
+                  - 'ecr:GetAuthorizationToken'
+                  - 'logs:CreateLogGroup'
+                  - 'logs:CreateLogStream'
+                  - 'logs:PutLogEvents'
+                Effect: 'Allow'
+                Resource: '*'
+      RoleName: !Join ['-', [!Ref 'ApplicationName', ecs, task]]
+
+  EcsTaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Cpu: !Select [0, !Split [',', !Ref 'FargateSize']]
+      ExecutionRoleArn: !GetAtt 'EcsTaskRole.Arn'
+      Family: !Ref 'ApplicationName'
+      Memory: !Select [1, !Split [',', !Ref 'FargateSize']]
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      ContainerDefinitions:
+        - Name: !Ref 'ApplicationName'
+          Image: 'reluscloud/docker-demo'
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref 'LogGroup'
+              awslogs-region: !Ref 'AWS::Region'
+              awslogs-stream-prefix: ecs
+          PortMappings:
+            - ContainerPort: !Ref 'ContainerPort'
+          Essential: true
+      TaskRoleArn: !GetAtt 'EcsTaskRole.Arn'
+
+  EcsCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Ref 'ApplicationName'
+
+  EcsService:
+    Type: AWS::ECS::Service
+    DependsOn:
+      - LoadBalancerListener
+    Properties:
+      TaskDefinition: !Ref 'EcsTaskDefinition'
+      DesiredCount: 1
+      LoadBalancers:
+        - TargetGroupArn: !Ref 'TargetGroup'
+          ContainerPort: !Ref 'ContainerPort'
+          ContainerName: !Ref 'ApplicationName'
+        - TargetGroupArn: !Ref 'WafTargetGroup'
+          ContainerPort: !Ref 'ContainerPort'
+          ContainerName: !Ref 'ApplicationName'
+      Cluster: !Ref 'EcsCluster'
+      LaunchType: FARGATE
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          AssignPublicIp: ENABLED
+          SecurityGroups:
+            - !Ref LoadBalancerSecurityGroup
+          Subnets:
+            - !Ref 'SubnetId1'
+            - !Ref 'SubnetId2'
+Outputs:
+  EcsServiceLink:
+    Description: The console link the ECS service for this application
+    Value: !Sub ['https://console.aws.amazon.com/ecs/home?region=${AWS::Region}#/clusters/Fargate/services/${App}/details', { App: !Ref ApplicationName } ]
+  EndpointUrl:
+    Description: The HTTP endpoint to call the service
+    Value: !Sub [ 'http://${DNSName}', { DNSName: !GetAtt [ LoadBalancer, 'DNSName' ] } ]
+  WafEndpointUrl:
+    Description: The HTTP endpoint to call the service
+    Value: !Sub [ 'http://${DNSName}', { DNSName: !GetAtt [ WafLoadBalancer, 'DNSName' ] } ]
+  BuildLink:
+    Description: The console link to the codebuild project associated with this application
+    Value: !Sub ['https://console.aws.amazon.com/codebuild/home?region=${AWS::Region}#/projects/${App}-build/view', { App: !Ref ApplicationName } ]
+  RepositoryLink:
+    Description: The console link to the codecommit repository associated with this application
+    Value: !Sub ['https://console.aws.amazon.com/codecommit/home?region=${AWS::Region}#/repository/${App}/browser/HEAD/--/', { App: !Ref ApplicationName } ]
