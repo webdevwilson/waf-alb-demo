@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"html/template"
+	"strings"
 )
 
 var url, wafUrl, port string
@@ -18,8 +19,10 @@ func main() {
 	port = envVar("PORT", "80")
 
 	defaultUrl := fmt.Sprintf("http://localhost:%s/", port)
-	wafUrl = envVar("WAF_URL", defaultUrl)
-	url = envVar("URL", defaultUrl)
+
+	// ALB DNSNames may contain upper case
+	wafUrl = strings.ToLower(envVar("WAF_URL", defaultUrl))
+	url = strings.ToLower(envVar("URL", defaultUrl))
 
 	r := RequestHandler{}
 	http.Handle("/", r)
