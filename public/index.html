@@ -1,87 +1,107 @@
 {{ define "index" }}
-<html>
+
+<!doctype html>
+<html lang="en">
 <head>
-    <script src="https://code.jquery.com/jquery-3.4.1.min.js"
-            integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo="
-            crossorigin="anonymous"></script>
-
-{{/*    <link href="https://fonts.googleapis.com/css?family=Roboto&display=swap" rel="stylesheet">*/}}
-{{/*    <style>*/}}
-{{/*        body {*/}}
-{{/*            font-family: "Roboto", sans-serif;*/}}
-{{/*            background-color: #e0e0e0;*/}}
-{{/*            color: #333;*/}}
-{{/*        }*/}}
-{{/*    </style>*/}}
-
-    <link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
-    <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
-    <link rel="stylesheet" href="https://fonts.googleapis.com/icon?family=Material+Icons">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <title>Test Vulnerabilities</title>
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+    <style>
+        body {
+            padding-top: 5rem;
+        }
+    </style>
 </head>
 <body>
-    <h1>OWasp Threat Test</h1>
-    <div class="message">
-        <h2>Headers</h2>
-        <p style="display: none">{{ .Headers }}</p>
-    </div>
-    <div class="message">
-        <h2>Cookies</h2>
-        <p style="display: none">{{ .Cookies }}</p>
-    </div>
-    <div class="message">
-        <h1>GET Variables</h1>
-        <p>
-            {{ .GetVar }}
-        </p>
-    </div>
-    <div class="message">
-        <h1>POST Variables</h1>
-        <p>
-            {{ .PostVar }}
-        </p>
-    </div>
-    <form action="/">
-        <div class="mdc-text-field mdc-text-field--textarea">
-            <textarea id="formvar" id="formvar" name="formvar" class="mdc-text-field__input" rows="8" cols="40"></textarea>
-            <div class="mdc-notched-outline">
-                <div class="mdc-notched-outline__leading"></div>
-                <div class="mdc-notched-outline__notch">
-                    <label for="formvar" class="mdc-floating-label"></label>
+    <nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top">
+        <a class="navbar-brand" href="#">Vulnerability Test</a>
+    </nav>
+    <main role="main" class="flex-shrink-0">
+        <div class="container">
+            <div class="row">
+                <div class="col">
+                    <div class="card mt-2">
+                        <h5 class="card-header">Common Vulnerabilities</h5>
+                        <div class="card-body">
+                            <p class="card-subtitle mb-2 text-muted">
+                                Execute common web application vulnerabilities by clicking the links below.
+                            </p>
+                            <hr>
+                            <button id="owasp-xss" type="button" class="btn btn-primary">XSS</button>
+                            <button id="owasp-sqli" type="button" class="btn btn-primary">SQLi</button>
+                        </div>
+                    </div>
                 </div>
-                <div class="mdc-notched-outline__trailing"></div>
+                <div class="col">
+                    <div class="container">
+{{if .HasPayload}}
+                        <div class="row mt-2">
+                            <div class="col">
+                                <div class="alert alert-danger" role="alert">
+                                    <h5 class="alert-heading">Attack Payload</h5>
+                                    <pre>{{ .Payload }}</pre>
+                                </div>
+                            </div>
+                        </div>
+                        <div style="display: none">{{ .PayloadHTML }}</div>
+{{end}}
+                        <div class="row mt-2">
+                            <div class="col">
+                                <form action="http://waf-alb-demo-688550880.us-east-1.elb.amazonaws.com/" method="POST">
+                                    <div class="input-group">
+                                        <div class="input-group-prepend">
+                                            <span class="input-group-text">Payload</span>
+                                        </div>
+                                        <textarea id="payload" name="payload" class="form-control" aria-label="Payload" rows="5"></textarea>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col">
+                                <div class="btn-group" role="group" aria-label="Execute Payload">
+                                    <button type="button" id="send" class="btn btn-secondary">Send Attack</button>
+                                </div>
+                                <button type="button" class="btn btn-danger" id="waftoggle" style="width: 8rem;"><b>WAF:</b> Off</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-        <div>
-            <button id="postbtn" class="mdc-button mdc-button--outlined"><span class="mdc-button__label">POST</span></button>
-            <button id="getbtn" class="mdc-button mdc-button--outlined"><span class="mdc-button__label">GET</span></button>
-        </div>
-        <div>
-            <ul>
-                <li><a href="#" id="owasp-xss">XSS Attack</a></li>
-                <li><a href="#" id="owasp-sqli">SQLi Attack</a></li>
-            </ul>
-        </div>
-    </form>
+    </main>
+    <script>
+        $(function() {
+            $('#send').click(function() {
+                $('form').submit()
+            })
+            $('#owasp-xss').click(function() {
+                $('#payload')[0].value = '< script>alert(\'XSS Attack success\')< \/script>'.replace(/< /g, '<')
+                return false
+            })
+            $('#owasp-sqli').click(function() {
+                $('#payload')[0].value = '\'; DROP TABLE \'accounts\';'
+                return false
+            })
+            $('#waftoggle').click(function() {
+                $(this).toggleClass('btn-danger btn-success').blur()
+                var wafOn = $(this).hasClass('btn-success')
+                if (wafOn) {
+                    $(this).html('<b>WAF:</b> On')
+                    $('form')[0].action = 'http://waf-waf-alb-demo-772323330.us-east-1.elb.amazonaws.com/'
+                } else {
+                    $(this).html('<b>WAF:</b> Off')
+                    $('form')[0].action = 'http://waf-alb-demo-688550880.us-east-1.elb.amazonaws.com/'
+                }
+            })
+        })
+    </script>
 </body>
-<script>
-    $(function() {
-        $('#postbtn').click(function() {
-            $('form')[0].method='POST'
-            $('form').submit()
-        })
-        $('#getbtn').click(function() {
-            $('form')[0].method='GET'
-            $('form').submit()
-        })
-        $('#owasp-xss').click(function() {
-            $('#formvar')[0].value = '< script>alert(\'XSS Attack success\')< \/script>'.replace(/< /g, '<')
-            return false
-        })
-        $('#owasp-sqli').click(function() {
-            $('#formvar')[0].value = '\'; DROP TABLE \'accounts\';'
-            return false
-        })
-    })
-</script>
 </html>
 {{ end }}

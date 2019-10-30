@@ -1,4 +1,8 @@
-resource "aws_wafregional_web_acl" "my_waf" {
+data "aws_wafregional_web_acl" "waf_rule" {
+
+}
+
+resource aws_wafregional_web_acl my_waf {
   name        = "fortinet-owasp-top10"
   metric_name = "fortinetowasptop10"
 

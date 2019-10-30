@@ -1,13 +1,14 @@
+// Query for Web ACL ARN
 data "aws_wafregional_web_acl" "web_acl" {
-  name = var.waf_rule_set
+  name = "fortinet-owasp-top10"
 }
 
-// create an ALB
+// Create an ALB
 resource "aws_alb" "my_alb" {
   name = "waf-alb"
 }
 
-// attach waf to alb
+// Attach ALB to WAF
 resource "aws_wafregional_web_acl_association" "waf_association" {
   web_acl_id   = data.aws_wafregional_web_acl.web_acl.id
   resource_arn = aws_alb.my_alb.arn

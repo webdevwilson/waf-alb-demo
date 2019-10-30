@@ -3,11 +3,10 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"text/template"
 	"log"
 	"net/http"
 	"os"
-	"strings"
+	"html/template"
 )
 
 type RequestHandler struct {}
@@ -30,39 +29,28 @@ func main() {
 }
 
 type TemplateData struct {
-	Headers map[string]string
-	Cookies map[string]string
-	PostVar string
-	GetVar string
+	HasPayload bool
+	Payload string
+	PayloadHTML template.HTML
 }
 
 func (r RequestHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
 	// Read headers into map
 	var data = TemplateData{}
-	data.Headers = make(map[string]string)
-	for k, v := range req.Header {
-		data.Headers[k] = strings.Join(v, ",")
+
+	if req.Method == "POST" {
+		req.ParseForm()
+		data.Payload = req.Form.Get("payload")
 	}
 
-	// Read cookies into map
-	data.Cookies = make(map[string]string)
-	for _, cookie := range req.Cookies() {
-		data.Cookies[cookie.Name] = cookie.Value
-	}
-
-	// Read POST variables
-	err := req.ParseForm()
-	if err != nil {
-		internalError(err, w)
-	}
-	data.PostVar = req.Form.Get("formvar")
-	data.GetVar = req.URL.Query().Get("formvar")
+	data.PayloadHTML = template.HTML(data.Payload)
+	data.HasPayload = data.Payload != ""
 
 	// Render Response
 	t := template.Must(template.New("index.html").ParseFiles("public/index.html"))
 	buf := bytes.NewBuffer([]byte{})
-	err = t.ExecuteTemplate(buf, "index", data)
+	err := t.ExecuteTemplate(buf, "index", data)
 	if err != nil {
 		internalError(err, w)
 	}

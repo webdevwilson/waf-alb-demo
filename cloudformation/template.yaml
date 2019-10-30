@@ -173,7 +173,7 @@ Resources:
         - FARGATE
       ContainerDefinitions:
         - Name: !Ref 'ApplicationName'
-          Image: 'reluscloud/docker-demo'
+          Image: !Ref 'Image'
           LogConfiguration:
             LogDriver: awslogs
             Options:
