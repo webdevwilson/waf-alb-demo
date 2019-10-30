@@ -12,17 +12,15 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
-    <style>
-        body {
-            padding-top: 5rem;
-        }
-    </style>
+    <link href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous">
 </head>
-<body>
+<body class="pt-5">
     <nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top">
         <a class="navbar-brand" href="#">Vulnerability Test</a>
+        <div class="collapse navbar-collapse" id="navbarText"></div>
+        <a href="https://github.com/webdevwilson/waf-alb-demo" class="nav-link" target="_blank"><i class="fa fa-github"></i> Source</a>
     </nav>
-    <main role="main" class="flex-shrink-0">
+    <main role="main" class="flex-shrink-0 mt-4">
         <div class="container">
             <div class="row">
                 <div class="col">
@@ -78,6 +76,24 @@
     </main>
     <script>
         $(function() {
+
+            let url = "{{ .Url }}"
+            let wafUrl = "{{ .WafUrl }}"
+
+            let toggleWaf = function(on) {
+                if(on) {
+                    $('#waftoggle').html('<b>WAF:</b> On')
+                        .addClass('btn-success')
+                        .removeClass('btn-danger')
+                    $('form')[0].action = wafUrl
+                } else {
+                    $('#waftoggle').html('<b>WAF:</b> Off')
+                        .addClass('btn-danger')
+                        .removeClass('btn-success')
+                    $('form')[0].action = url
+                }
+            }
+
             $('#send').click(function() {
                 $('form').submit()
             })
@@ -90,15 +106,8 @@
                 return false
             })
             $('#waftoggle').click(function() {
-                $(this).toggleClass('btn-danger btn-success').blur()
-                var wafOn = $(this).hasClass('btn-success')
-                if (wafOn) {
-                    $(this).html('<b>WAF:</b> On')
-                    $('form')[0].action = 'http://waf-waf-alb-demo-772323330.us-east-1.elb.amazonaws.com/'
-                } else {
-                    $(this).html('<b>WAF:</b> Off')
-                    $('form')[0].action = 'http://waf-alb-demo-688550880.us-east-1.elb.amazonaws.com/'
-                }
+                toggleWaf($(this).hasClass('btn-danger'))
+                $(this).blur()
             })
         })
     </script>

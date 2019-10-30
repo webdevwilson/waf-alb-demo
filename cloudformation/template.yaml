@@ -183,6 +183,13 @@ Resources:
           PortMappings:
             - ContainerPort: !Ref 'ContainerPort'
           Essential: true
+          Environment:
+            - Name: PORT
+              Value: !Ref ContainerPort
+            - Name: URL
+              Value: !Sub [ 'http://${DNSName}/', { DNSName: !GetAtt [ LoadBalancer, 'DNSName' ] } ]
+            - Name: WAF_URL
+              Value: !Sub [ 'http://${DNSName}/', { DNSName: !GetAtt [ WafLoadBalancer, 'DNSName' ] } ]
       TaskRoleArn: !GetAtt 'EcsTaskRole.Arn'
 
   EcsCluster:

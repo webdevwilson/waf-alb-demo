@@ -9,15 +9,17 @@ import (
 	"html/template"
 )
 
-type RequestHandler struct {}
+var url, wafUrl, port string
+
+type RequestHandler struct{}
 
 func main() {
 
-	var port string
-	var ok bool
-	if port, ok = os.LookupEnv("PORT"); !ok {
-		port = "80"
-	}
+	port = envVar("PORT", "80")
+
+	defaultUrl := fmt.Sprintf("http://localhost:%s/", port)
+	wafUrl = envVar("WAF_URL", defaultUrl)
+	url = envVar("URL", defaultUrl)
 
 	r := RequestHandler{}
 	http.Handle("/", r)
@@ -28,17 +30,32 @@ func main() {
 
 }
 
+func envVar(key string, defaultVal string) string {
+	var val string
+	var ok bool
+	if val, ok = os.LookupEnv(key); !ok {
+		val = defaultVal
+	}
+	return val
+}
+
 type TemplateData struct {
-	HasPayload bool
-	Payload string
+	HasPayload  bool
+	Payload     string
 	PayloadHTML template.HTML
+	Url         string
+	WafUrl      string
 }
 
 func (r RequestHandler) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 
-	// Read headers into map
-	var data = TemplateData{}
+	// Create template data struct
+	var data = TemplateData{
+		Url:    url,
+		WafUrl: wafUrl,
+	}
 
+	// On post, grab the form value
 	if req.Method == "POST" {
 		req.ParseForm()
 		data.Payload = req.Form.Get("payload")
